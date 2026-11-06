@@ -1,0 +1,22 @@
+[
+  {
+    "id": "short",
+    "text": "Good morning. I hope you are having a lovely day."
+  },
+  {
+    "id": "medium",
+    "text": "The train to Oxford leaves from platform three at quarter past nine. Please have your tickets ready before boarding, and mind the gap when stepping onto the train."
+  },
+  {
+    "id": "long",
+    "text": "Welcome back. Today we are looking at a simple idea with surprisingly powerful consequences. A good on-device speech system should respond quickly, sound natural, preserve the speaker's identity, and work reliably without sending private conversations to a remote server. Those goals can compete with one another, so we need to measure each part carefully. We will compare several model configurations using the same words, the same reference voice, and the same machine."
+  },
+  {
+    "id": "numbers_punctuation",
+    "text": "At 8:45 a.m., Dr Smith paid £12.50 for 3 coffees and 2 sandwiches. The receipt said: 'Thank you, and see you on 14 November!'"
+  },
+  {
+    "id": "questions_contractions",
+    "text": "Wouldn't it be useful if your laptop could read this aloud, even when you're offline? Here's the question: can we make it faster without making the voice sound worse?"
+  }
+]

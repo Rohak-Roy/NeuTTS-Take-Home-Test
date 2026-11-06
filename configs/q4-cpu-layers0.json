@@ -1,0 +1,15 @@
+{
+  "backbone_repo": "neuphonic/neutts-nano-q4-gguf",
+  "backbone_device": "cpu",
+  "codec_repo": "neuphonic/neucodec",
+  "codec_device": "cpu",
+  "reference_audio": "upstream/samples/jo.wav",
+  "reference_text_file": "upstream/samples/jo.txt",
+  "prompts_file": "prompts.json",
+  "output_dir": "results/offline/tuning/q4-cpu-layers0",
+  "warmup_runs": 1,
+  "repeats": 5,
+  "temperature": 1.0,
+  "top_k": 50,
+  "seed": 1234
+}

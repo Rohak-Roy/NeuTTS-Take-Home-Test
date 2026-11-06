@@ -1,0 +1,11 @@
+# Local model weights and Hugging Face caches
+/model/
+/models/
+
+# Python environments and generated artifacts
+.venv/
+.venv-*/
+__pycache__/
+*.py[cod]
+/benchmark-output/
+.DS_Store
