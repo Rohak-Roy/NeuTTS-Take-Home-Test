@@ -21,7 +21,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 import numpy as np
 import psutil
@@ -240,6 +240,32 @@ def timed_method(
     setattr(obj, method_name, wrapped)
 
 
+def timed_first_generated_token(
+    backbone: Any,
+    request_start: list[float | None],
+    timings: list[float],
+) -> None:
+    """Record request-to-first-token time for llama.cpp generation.
+
+    Args:
+        backbone: llama.cpp model instance with a ``generate`` token iterator.
+        request_start: One-item state list set immediately before each measured inference.
+        timings: List receiving time to the first yielded token for each measured call.
+    """
+    original_generate: Callable[..., Iterator[int]] = backbone.generate
+
+    def wrapped_generate(*args: Any, **kwargs: Any) -> Iterator[int]:
+        for token in original_generate(*args, **kwargs):
+            started = request_start[0]
+            if started is not None:
+                # The first yielded token means prompt prefill and first-token sampling finished.
+                timings.append(time.perf_counter() - started)
+                request_start[0] = None
+            yield token
+
+    backbone.generate = wrapped_generate
+
+
 def resolve_path(value: str | Path) -> Path:
     """Resolve a relative input path from the repository root.
 
@@ -450,11 +476,15 @@ def main() -> int:
     stage_backbone: list[float] = []
     stage_codec: list[float] = []
     generated_token_counts: list[int] = []
+    first_token_samples: list[float] = []
+    request_start: list[float | None] = [None]
 
     # These wrappers instrument the library's existing stage boundaries without
     # editing upstream code. The private method names are version-sensitive.
     if hasattr(tts, "_infer_ggml"):
         timed_method(tts, "_infer_ggml", stage_backbone, synchronize=synchronize)
+        # llama.cpp exposes generated token IDs as an iterator, allowing direct TTFT timing.
+        timed_first_generated_token(tts.backbone, request_start, first_token_samples)
     if hasattr(tts, "_infer_torch"):
         timed_method(tts, "_infer_torch", stage_backbone, synchronize=synchronize)
     timed_method(tts, "_decode", stage_codec, generated_token_counts, synchronize)
@@ -479,9 +509,11 @@ def main() -> int:
             stage_backbone.clear()
             stage_codec.clear()
             generated_token_counts.clear()
+            first_token_samples.clear()
+            synchronize()
             started = time.perf_counter()
+            request_start[0] = started
             try:
-                synchronize()
                 wav = tts.infer(text, ref_codes, reference_text,
                                 temperature=temperature, top_k=top_k)
                 synchronize()
@@ -490,6 +522,7 @@ def main() -> int:
                 if wav_array.size == 0 or not np.isfinite(wav_array).all():
                     raise ValueError("Inference returned empty audio or non-finite samples")
             except Exception as exc:
+                request_start[0] = None
                 records.append({
                     "case_id": case_id,
                     "repeat": repeat + 1,
@@ -500,6 +533,7 @@ def main() -> int:
                     "error_message": str(exc),
                 })
                 continue
+            request_start[0] = None
             audio_seconds = len(wav_array) / sample_rate
             backbone_seconds = stage_backbone[-1] if stage_backbone else None
             codec_seconds = stage_codec[-1] if stage_codec else None
@@ -520,6 +554,9 @@ def main() -> int:
                 "text_chars": len(text),
                 "text_words": len(text.split()),
                 "wall_seconds": wall_seconds,
+                "time_to_first_token_seconds": (
+                    first_token_samples[0] if first_token_samples else None
+                ),
                 "backbone_seconds": backbone_seconds,
                 "codec_decode_seconds": codec_seconds,
                 "other_seconds": other_seconds,
@@ -533,6 +570,11 @@ def main() -> int:
             })
 
     sampler.stop()
+    ttft_values = [
+        float(record["time_to_first_token_seconds"])
+        for record in records
+        if record.get("time_to_first_token_seconds") is not None
+    ]
     metadata = {
         "hardware": hardware_info(),
         "config": config,
@@ -540,6 +582,9 @@ def main() -> int:
             "model_load_seconds": model_load_seconds,
             "reference_encode_seconds": reference_encode_seconds,
             "reference_codes_load_seconds": reference_codes_load_seconds,
+            "median_time_to_first_token_seconds": (
+                round(float(statistics.median(ttft_values)), 6) if ttft_values else None
+            ),
             "rss_before_model_mb": round(rss_before_model_mb, 2),
             "peak_process_rss_mb": round(sampler.peak_mb, 2),
             "peak_process_rss_delta_mb": round(sampler.delta_mb, 2),

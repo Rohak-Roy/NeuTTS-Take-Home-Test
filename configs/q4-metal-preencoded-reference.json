@@ -1,0 +1,16 @@
+{
+  "backbone_repo": "neuphonic/neutts-nano-q4-gguf",
+  "backbone_device": "mps",
+  "codec_repo": "neuphonic/neucodec",
+  "codec_device": "cpu",
+  "reference_audio": "upstream/samples/jo.wav",
+  "reference_text_file": "upstream/samples/jo.txt",
+  "prompts_file": "prompts.json",
+  "output_dir": "results/q4-metal-preencoded-reference",
+  "warmup_runs": 1,
+  "repeats": 5,
+  "temperature": 1.0,
+  "top_k": 50,
+  "seed": 1234,
+  "reference_codes_file": "upstream/samples/jo.pt"
+}
