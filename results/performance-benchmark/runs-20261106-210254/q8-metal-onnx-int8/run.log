@@ -1,0 +1,41 @@
+/Users/rohakroy/Documents/NeuTTS-Take-Home-Test/.venv-metal/lib/python3.13/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+W1106 22:19:50.632000 30771 .venv-metal/lib/python3.13/site-packages/torch/distributed/elastic/multiprocessing/redirects.py:35] NOTE: Redirects are currently not supported in MacOs.
+Loading backbone from: /Users/rohakroy/Documents/NeuTTS-Take-Home-Test/models/huggingface/hub/models--neuphonic--neutts-nano-q8-gguf/snapshots/16705743fc6e00751987b2e3628aa0ea56fc3880/neutts-nano-Q8_0.gguf on mps ...
+Loading phonemizer...
+Loading codec from: /Users/rohakroy/Documents/NeuTTS-Take-Home-Test/models/huggingface/hub/models--neuphonic--neucodec-onnx-decoder-int8/snapshots/d4b449d34211ffe3b5efc57fa464b37393f8ce7f/model.onnx on cpu ...
+loaded PerthNet (Implicit) at step 250,000
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Using seed 1234
+Benchmark complete. Results: /Users/rohakroy/Documents/NeuTTS-Take-Home-Test/results/performance-benchmark/runs-20261106-210254/q8-metal-onnx-int8
+Model load: 10.65s | pre-encoded codes load: 0.00s
+Peak process RSS: 2317 MB (delta 1823 MB)
+Summary: /Users/rohakroy/Documents/NeuTTS-Take-Home-Test/results/performance-benchmark/runs-20261106-210254/q8-metal-onnx-int8/summary.md
