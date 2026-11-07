@@ -384,6 +384,18 @@ def main() -> int:
     parser.add_argument(
         "--warmup-runs", type=int, help="Override the config's warmup count per prompt."
     )
+    parser.add_argument(
+        "--kv-cache",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable or disable GGUF common-prefix KV-cache reuse.",
+    )
+    parser.add_argument(
+        "--phoneme-cache",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable or disable per-instance phonemization result caching.",
+    )
     args = parser.parse_args()
     config_path = resolve_path(args.config)
     config = load_config(config_path)
@@ -391,6 +403,12 @@ def main() -> int:
     # CLI overrides make short smoke runs possible without editing config files.
     warmups = args.warmup_runs if args.warmup_runs is not None else int(config.get("warmup_runs", 1))
     repeats = args.repeats if args.repeats is not None else int(config.get("repeats", 5))
+    cache_kv = args.kv_cache if args.kv_cache is not None else bool(config.get("cache_kv", True))
+    cache_phonemes = (
+        args.phoneme_cache
+        if args.phoneme_cache is not None
+        else bool(config.get("cache_phonemes", True))
+    )
     if warmups < 1 or repeats < 1:
         parser.error("warmup_runs and repeats must both be >= 1")
 
@@ -422,6 +440,8 @@ def main() -> int:
     effective_codec = configure_local_codec(str(config["codec_repo"]))
     if effective_codec != config["codec_repo"]:
         config["resolved_codec_path"] = effective_codec
+    config["cache_kv"] = cache_kv
+    config["cache_phonemes"] = cache_phonemes
 
     sampler = RSSSampler()
     sampler.start()
@@ -436,6 +456,8 @@ def main() -> int:
         codec_device=config["codec_device"],
         language=language,
         seed=int(config.get("seed", 1234)),
+        cache_kv=cache_kv,
+        cache_phonemes=cache_phonemes,
     )
     model_load_seconds = time.perf_counter() - load_started
 
@@ -582,6 +604,7 @@ def main() -> int:
             "model_load_seconds": model_load_seconds,
             "reference_encode_seconds": reference_encode_seconds,
             "reference_codes_load_seconds": reference_codes_load_seconds,
+            "phonemization_cache": tts.phonemization_cache_info(),
             "median_time_to_first_token_seconds": (
                 round(float(statistics.median(ttft_values)), 6) if ttft_values else None
             ),
