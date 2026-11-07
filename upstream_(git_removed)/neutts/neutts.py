@@ -3,6 +3,7 @@ import random
 import subprocess
 import sys
 import unicodedata
+from collections import OrderedDict
 from typing import Generator
 from pathlib import Path
 import librosa
@@ -134,6 +135,8 @@ class NeuTTS:
         codec_device="cpu",
         language=None,
         seed=None,
+        cache_kv=True,
+        cache_phonemes=True,
     ):
 
         # Consts
@@ -154,6 +157,12 @@ class NeuTTS:
         self.tokenizer = None
 
         self._seed = seed
+        self.cache_kv = cache_kv
+        self.cache_phonemes = cache_phonemes
+        self._phoneme_cache: OrderedDict[str, str] = OrderedDict()
+        self._phoneme_cache_maxsize = 256
+        self._phonemization_cache_hits = 0
+        self._phonemization_cache_misses = 0
 
         self._load_backbone(backbone_repo, backbone_device)
 
@@ -423,10 +432,43 @@ class NeuTTS:
             raise ValueError("No valid speech tokens found in the output.")
 
     def _to_phones(self, text: str) -> str:
+        """Convert text to phonemes, reusing recent results when enabled.
+
+        Args:
+            text: Text to phonemize.
+
+        Returns:
+            Space-separated phonemes.
+        """
+        if self.cache_phonemes and text in self._phoneme_cache:
+            self._phonemization_cache_hits += 1
+            phones = self._phoneme_cache.pop(text)
+            self._phoneme_cache[text] = phones
+            return phones
+
         phones = self.phonemizer.phonemize([text])
         phones = phones[0].split()
-        phones = " ".join(phones)
-        return phones
+        phoneme_text = " ".join(phones)
+        self._phonemization_cache_misses += 1
+
+        if self.cache_phonemes:
+            self._phoneme_cache[text] = phoneme_text
+            if len(self._phoneme_cache) > self._phoneme_cache_maxsize:
+                self._phoneme_cache.popitem(last=False)
+        return phoneme_text
+
+    def phonemization_cache_info(self) -> dict[str, int | bool]:
+        """Return phonemization cache settings and hit/miss counters.
+
+        Returns:
+            Cache enabled state, hit/miss counts, and current entry count.
+        """
+        return {
+            "enabled": self.cache_phonemes,
+            "hits": self._phonemization_cache_hits,
+            "misses": self._phonemization_cache_misses,
+            "entries": len(self._phoneme_cache),
+        }
 
     def _apply_chat_template(
         self, ref_codes: list[int], ref_text: str, input_text: str, emotion: str | None = None
@@ -539,8 +581,10 @@ class NeuTTS:
         top_k: int = 50,
     ) -> str:
         prompt = self._ggml_prompt(ref_codes, ref_text, input_text, emotion)
-        # a full re-prefill keeps repeated calls bit-identical
-        self.backbone.reset()
+        # Preserve llama.cpp's KV state so it can reuse the exact common prompt prefix.
+        # Reset remains available for baseline comparisons and callers needing full re-prefill.
+        if not self.cache_kv:
+            self.backbone.reset()
         output = self.backbone(
             prompt,
             max_tokens=self.max_context,
@@ -562,8 +606,9 @@ class NeuTTS:
         top_k: int = 50,
     ) -> Generator[np.ndarray, None, None]:
         prompt = self._ggml_prompt(ref_codes, ref_text, input_text, emotion)
-        # a full re-prefill keeps repeated calls bit-identical
-        self.backbone.reset()
+        # Match non-streaming inference: reuse common prefixes unless explicitly disabled.
+        if not self.cache_kv:
+            self.backbone.reset()
 
         audio_cache: list[np.ndarray] = []
         token_cache: list[str] = [f"<|speech_{idx}|>" for idx in ref_codes]
