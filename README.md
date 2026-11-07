@@ -23,7 +23,22 @@ deactivate
 
 The runner selects `.venv-accelerate` when both backbone and decoder use CPU; all other configs use `.venv-metal`. The build flags follow the [llama.cpp Accelerate](https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md#accelerate-framework) and [llama-cpp-python Metal](https://github.com/abetlen/llama-cpp-python#metal) build instructions.
 
-Model files must be present in `models/huggingface/hub`; the benchmark runs offline and needs no Hugging Face token. Run from a host macOS terminal so MPS can access Metal:
+Model files must be present in `models/huggingface/hub`; the benchmark runs offline and needs no Hugging Face token. The runtime cache should contain these model entries:
+
+| Hugging Face model ID | Purpose / configs |
+|---|---|
+| `neuphonic/neutts-nano-q4-gguf` | Q4 GGUF backbone configs |
+| `neuphonic/neutts-nano-q8-gguf` | Q8 GGUF backbone configs |
+| `neuphonic/neutts-nano` | Standard Torch backbone configs |
+| `neuphonic/neucodec` | Standard reference encoder and audio decoder |
+| `neuphonic/distill-neucodec` | Distilled decoder configs; also needs `ntu-spml/distilhubert` |
+| `neuphonic/neucodec-onnx-decoder-int8` | ONNX INT8 decoder configs |
+| `facebook/w2v-bert-2.0` | Semantic encoder used by standard NeuCodec |
+| `ntu-spml/distilhubert` | Semantic encoder used by distilled NeuCodec |
+
+These are Hugging Face cache entries under `models/huggingface/hub/models--<org>--<name>/`. The pre-encoded-reference and ONNX INT8 configs also use `upstream/samples/jo.pt`; other configs encode `upstream/samples/jo.wav` using `jo.txt`. All configs use `prompts.json`.
+
+Run from a host macOS terminal so MPS can access Metal:
 
 ```bash
 ./performance_benchmark.sh
